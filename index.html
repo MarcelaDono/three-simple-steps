@@ -26,6 +26,23 @@ html,body{height:100%;background:var(--cream)}
 body{font-family:var(--font-body);color:var(--ink);display:flex;flex-direction:column;align-items:center}
 #app{width:100%;max-width:560px;min-height:100vh;display:flex;flex-direction:column;background:var(--cream)}
 
+/* PASSWORD SCREEN */
+#pwd-screen{position:fixed;inset:0;background:var(--cream);display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px}
+#pwd-screen.hidden{display:none}
+.pwd-box{width:100%;max-width:340px;text-align:center}
+.pwd-logo{font-family:var(--font-title);font-size:48px;font-weight:300;color:var(--ink);line-height:1;margin-bottom:4px}
+.pwd-logo em{font-style:italic;color:var(--green)}
+.pwd-subtitle{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--hint);margin-bottom:40px}
+.pwd-divider{height:0.5px;background:linear-gradient(90deg,transparent,var(--gold-mid),transparent);margin-bottom:40px}
+.pwd-label{font-size:12px;color:var(--muted);margin-bottom:12px;font-style:italic;font-family:var(--font-title);font-size:14px}
+.pwd-input{width:100%;padding:14px 18px;border:0.5px solid var(--border);border-radius:14px;font-size:16px;font-family:var(--font-body);background:var(--card);color:var(--ink);outline:none;text-align:center;letter-spacing:0.08em;margin-bottom:12px;transition:border-color 0.2s}
+.pwd-input:focus{border-color:var(--green-mid)}
+.pwd-input.error{border-color:#E08080;animation:shake 0.3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pwd-btn{width:100%;padding:14px;background:var(--green);color:white;border:none;border-radius:14px;font-size:14px;font-family:var(--font-body);cursor:pointer;font-weight:500;transition:all 0.2s;margin-bottom:8px}
+.pwd-btn:hover{background:var(--green-dark);transform:translateY(-1px)}
+.pwd-error{font-size:12px;color:#A04040;margin-top:4px;height:16px;font-style:italic}
+
 /* HERO */
 .hero{padding:28px 24px 0;position:relative}
 .hero-greeting{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--hint);font-weight:400;margin-bottom:4px}
@@ -294,7 +311,20 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
 </style>
 </head>
 <body>
-<div id="app">
+<!-- PASSWORD SCREEN -->
+<div id="pwd-screen">
+  <div class="pwd-box">
+    <div class="pwd-logo">Marcela<em>.</em></div>
+    <div class="pwd-subtitle">Three Simple Steps</div>
+    <div class="pwd-divider"></div>
+    <div class="pwd-label">Digite sua senha para entrar</div>
+    <input class="pwd-input" id="pwd-input" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPwd()"/>
+    <button class="pwd-btn" onclick="checkPwd()">Entrar</button>
+    <div class="pwd-error" id="pwd-error"></div>
+  </div>
+</div>
+
+<div id="app" style="display:none">
   <div class="hero">
     <div class="hero-greeting" id="greeting">bom dia</div>
     <div class="hero-name">Marcela<em>.</em></div>
@@ -877,7 +907,35 @@ function startTimer(min,name){
 function stopTimer(){if(_ti)clearInterval(_ti);_ti=null;document.getElementById('timer-overlay').classList.remove('active');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
-init();
+// ═══ PASSWORD ═══
+const PWD_HASH='5e36f9e7c8b2a1d4f6e8c3b5a7d9f2e4b6c8a3d5f7e9b1c4a6d8f2e5b7c9a3';
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h).toString(16);}
+function checkPwd(){
+  const val=document.getElementById('pwd-input').value;
+  const stored=localStorage.getItem('tss-auth');
+  if(stored===btoa(val)||val==='Mo597319!!'){
+    localStorage.setItem('tss-auth',btoa(val));
+    document.getElementById('pwd-screen').classList.add('hidden');
+    document.getElementById('app').style.display='flex';
+    init();
+  }else{
+    const inp=document.getElementById('pwd-input');
+    inp.classList.add('error');
+    document.getElementById('pwd-error').textContent='Senha incorreta. Tenta de novo.';
+    setTimeout(()=>{inp.classList.remove('error');inp.value='';},600);
+  }
+}
+function checkAuth(){
+  const stored=localStorage.getItem('tss-auth');
+  if(stored){
+    document.getElementById('pwd-screen').classList.add('hidden');
+    document.getElementById('app').style.display='flex';
+    init();
+  }else{
+    setTimeout(()=>document.getElementById('pwd-input').focus(),100);
+  }
+}
+checkAuth();
 </script>
 </body>
 </html>
