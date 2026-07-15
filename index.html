@@ -540,7 +540,15 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
 // ═══ SUPABASE CONFIG ═══
 const SUPABASE_URL = 'https://seucaetbtpnahglhiqay.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Xu1BRGkeQqmMruX1Cc5iIg_nNALxL7I';
-const USER_ID = 'marcela';
+
+// ═══ USERS ═══
+const USERS = {
+  'Mo597319!!': { id: 'marcela', name: 'Marcela' },
+  'Luciana2025': { id: 'luciana', name: 'Luciana' },
+};
+
+let CURRENT_USER = { id: 'marcela', name: 'Marcela' };
+const USER_ID = () => CURRENT_USER.id;
 
 function syncDot(state){
   const d=document.getElementById('sync-dot');
@@ -551,7 +559,7 @@ async function saveToCloud(data){
   syncDot('syncing');
   try{
     // Try upsert — update if exists, insert if not
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}`,{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID()}`,{
       method:'GET',
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}
     });
@@ -559,7 +567,7 @@ async function saveToCloud(data){
     
     if(existing && existing.length > 0){
       // Update
-      await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}`,{
+      await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID()}`,{
         method:'PATCH',
         headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
         body: JSON.stringify({data: data, updated_at: new Date().toISOString()})
@@ -569,7 +577,7 @@ async function saveToCloud(data){
       await fetch(`${SUPABASE_URL}/rest/v1/app_data`,{
         method:'POST',
         headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body: JSON.stringify({user_id: USER_ID, data: data, updated_at: new Date().toISOString()})
+        body: JSON.stringify({user_id: USER_ID(), data: data, updated_at: new Date().toISOString()})
       });
     }
     syncDot('synced');
@@ -582,7 +590,7 @@ async function saveToCloud(data){
 
 async function loadFromCloud(){
   try{
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}&select=data`,{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID()}&select=data`,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
     });
     const rows = await res.json();
@@ -670,13 +678,14 @@ const isToday=()=>viewKey()===todayKey();
 const dayData=k=>{if(!S.days[k])S.days[k]={checks:{},pos:0,neg:0};return S.days[k];};
 
 let saveTimer=null;
+const localKey=()=>`tss-v3-${USER_ID()}`;
 const save=()=>{
-  try{localStorage.setItem('tss-v3',JSON.stringify(S));}catch(e){}
+  try{localStorage.setItem(localKey(),JSON.stringify(S));}catch(e){}
   // Debounce cloud save — wait 1.5s after last change
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>saveToCloud(S),1500);
 };
-const load=()=>{try{const d=localStorage.getItem('tss-v3');if(d)Object.assign(S,JSON.parse(d));}catch(e){}};
+const load=()=>{try{const d=localStorage.getItem(localKey());if(d)Object.assign(S,JSON.parse(d));}catch(e){}};
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 // ═══ INIT ═══
@@ -698,7 +707,7 @@ async function init(){
   if(cloudData){
     // Cloud data wins — it's the most up to date across devices
     Object.assign(S, cloudData);
-    try{localStorage.setItem('tss-v3',JSON.stringify(S));}catch(e){}
+    try{localStorage.setItem(localKey(),JSON.stringify(S));}catch(e){}
     buildChecks();updateDayNav();
     syncDot('synced');
     setTimeout(()=>syncDot(''),2000);
@@ -994,30 +1003,55 @@ function stopTimer(){if(_ti)clearInterval(_ti);_ti=null;document.getElementById(
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 // ═══ PASSWORD ═══
+function loginAs(user){
+  CURRENT_USER = user;
+  // Update name throughout app
+  document.querySelectorAll('.hero-name').forEach(el=>el.innerHTML=`${user.name}<em>.</em>`);
+  document.querySelector('.pwd-logo').innerHTML=`${user.name}<em>.</em>`;
+  document.getElementById('pwd-screen').classList.add('hidden');
+  document.getElementById('app').style.display='flex';
+  // Reset state for this user
+  S={days:{},intents:{fin:[],rea:[],est:[],mat:[]},vocab:{use:[],avoid:[]},
+    diaryEntries:{},readings:[],heatData:{},
+    diaryTab:'livre',currentCat:null,selectedMood:null,
+    viewingDate:null,activePlaylist:'lofi',playerOpen:false,
+    chatHistory:[]};
+  init();
+}
+
 function checkPwd(){
   const val=document.getElementById('pwd-input').value;
-  const stored=localStorage.getItem('tss-auth');
-  if(stored===btoa(val)||val==='Mo597319!!'){
-    localStorage.setItem('tss-auth',btoa(val));
-    document.getElementById('pwd-screen').classList.add('hidden');
-    document.getElementById('app').style.display='flex';
-    init();
-  }else{
-    const inp=document.getElementById('pwd-input');
-    inp.classList.add('error');
-    document.getElementById('pwd-error').textContent='Senha incorreta. Tenta de novo.';
-    setTimeout(()=>{inp.classList.remove('error');inp.value='';},600);
+  // Check against known users
+  const user = USERS[val];
+  if(user){
+    localStorage.setItem('tss-auth', btoa(val));
+    loginAs(user);
+    return;
   }
+  // Check stored auth
+  const stored=localStorage.getItem('tss-auth');
+  if(stored){
+    try{
+      const decoded=atob(stored);
+      const storedUser=USERS[decoded];
+      if(storedUser){loginAs(storedUser);return;}
+    }catch(e){}
+  }
+  const inp=document.getElementById('pwd-input');
+  inp.classList.add('error');
+  document.getElementById('pwd-error').textContent='Senha incorreta. Tenta de novo.';
+  setTimeout(()=>{inp.classList.remove('error');inp.value='';},600);
 }
 function checkAuth(){
   const stored=localStorage.getItem('tss-auth');
   if(stored){
-    document.getElementById('pwd-screen').classList.add('hidden');
-    document.getElementById('app').style.display='flex';
-    init();
-  }else{
-    setTimeout(()=>document.getElementById('pwd-input').focus(),100);
+    try{
+      const decoded=atob(stored);
+      const user=USERS[decoded];
+      if(user){loginAs(user);return;}
+    }catch(e){}
   }
+  setTimeout(()=>document.getElementById('pwd-input').focus(),100);
 }
 checkAuth();
 </script>
