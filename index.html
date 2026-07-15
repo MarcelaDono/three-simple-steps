@@ -370,6 +370,7 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
     <button class="nav-btn" onclick="showTab('diario')" id="tab-diario"><i class="ti ti-notebook"></i><span>Diário</span></button>
     <button class="nav-btn" onclick="showTab('intencoes')" id="tab-intencoes"><i class="ti ti-sparkles"></i><span>Intenções</span></button>
     <button class="nav-btn" onclick="showTab('progresso')" id="tab-progresso"><i class="ti ti-chart-bar"></i><span>Progresso</span></button>
+    <button class="nav-btn" onclick="showTab('alertas')" id="tab-alertas"><i class="ti ti-bell"></i><span>Alertas</span></button>
     <button class="nav-btn" onclick="showTab('chat')" id="tab-chat"><i class="ti ti-message-circle"></i><span>Chat</span></button>
   </nav>
 
@@ -484,6 +485,14 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
       <div id="realized-list"></div>
     </div>
 
+
+    <!-- ALERTAS -->
+    <div id="sec-alertas" class="section-hidden">
+      <p class="sec-title">Alertas</p>
+      <div class="alert-info">As notificações funcionam enquanto o app estiver aberto no navegador. Ative as permissões para receber lembretes.</div>
+      <div id="alert-list"></div>
+      <button class="notif-btn" onclick="requestNotif()"><i class="ti ti-bell"></i>Ativar notificações do navegador</button>
+    </div>
     <!-- CHAT -->
     <div id="sec-chat" class="section-hidden">
       <p class="sec-title">Chat com Claude</p>
@@ -715,7 +724,115 @@ async function init(){
     syncDot('');
   }
   
-  setInterval(()=>{if(S.alertStates&&S.alertStates['a3']!==false)showPauseModal();},75*60*1000);
+  initAlerts();
+}
+
+// ═══ ALERTS ═══
+const ALERTS_DEF=[
+  {id:'a1',name:'Taking Quiet Time',sub:'iniciar os 20 minutos de silêncio',time:'06:30',icon:'ti-moon'},
+  {id:'a2',name:'Reescrita de Intenções — manhã',sub:'1ª vez do dia — à mão no papel',time:'07:00',icon:'ti-writing'},
+  {id:'a3',name:'Pausa de autoavaliação',sub:'a cada 1h15 — como estão seus pensamentos?',time:'auto',icon:'ti-clock-pause',interval:true},
+  {id:'a4',name:'Reescrita de Intenções — almoço',sub:'2ª vez do dia',time:'13:00',icon:'ti-writing'},
+  {id:'a5',name:'Reescrita de Intenções — noite',sub:'3ª vez do dia — última coisa antes de dormir',time:'21:00',icon:'ti-moon-stars'},
+];
+
+let _alertTimers=[];
+
+function initAlerts(){
+  // Initialize alert state if needed
+  if(!S.alertStates)S.alertStates={};
+  if(!S.alertTimes)S.alertTimes={};
+  ALERTS_DEF.forEach(a=>{
+    if(S.alertStates[a.id]===undefined)S.alertStates[a.id]=true;
+    if(!S.alertTimes[a.id])S.alertTimes[a.id]=a.time;
+  });
+  scheduleAlerts();
+}
+
+function scheduleAlerts(){
+  // Clear existing timers
+  _alertTimers.forEach(t=>clearInterval(t));
+  _alertTimers=[];
+  
+  // Interval alert (a3 — every 1h15)
+  if(S.alertStates['a3']!==false){
+    const t=setInterval(()=>{
+      fireAlert('a3','Pausa de autoavaliação','Como estão seus pensamentos agora?');
+      showPauseModal();
+    },75*60*1000);
+    _alertTimers.push(t);
+  }
+  
+  // Time-based alerts — check every minute
+  const t=setInterval(()=>{
+    const now=new Date();
+    const hhmm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    ALERTS_DEF.filter(a=>!a.interval).forEach(a=>{
+      if(S.alertStates[a.id]!==false && (S.alertTimes[a.id]||a.time)===hhmm){
+        fireAlert(a.id,a.name,a.sub);
+      }
+    });
+  },60*1000);
+  _alertTimers.push(t);
+}
+
+function fireAlert(id,name,sub){
+  // Browser notification
+  if(Notification.permission==='granted'){
+    new Notification('TSS · '+name,{body:sub,icon:'/favicon.ico'});
+  }
+}
+
+function requestNotif(){
+  Notification.requestPermission().then(p=>{
+    buildAlerts();
+    if(p==='granted')fireAlert('test','Notificações ativas!','Você receberá os lembretes do Three Simple Steps.');
+  });
+}
+
+function buildAlerts(){
+  if(!S.alertStates)S.alertStates={};
+  if(!S.alertTimes)S.alertTimes={};
+  const cont=document.getElementById('alert-list');if(!cont)return;
+  cont.innerHTML=ALERTS_DEF.map(a=>{
+    const on=S.alertStates[a.id]!==false;
+    const time=S.alertTimes[a.id]||a.time;
+    return `<div class="alert-card">
+      <div class="alert-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <i class="ti ${a.icon}" style="font-size:15px;color:var(--green)"></i>
+          <span class="alert-name">${a.name}</span>
+        </div>
+        <button class="toggle${on?' on':''}" onclick="toggleAlert('${a.id}',this)"></button>
+      </div>
+      <div class="alert-sub" style="font-size:11px;color:var(--hint);margin-bottom:9px;font-style:italic">${a.sub}</div>
+      ${a.interval
+        ? `<div class="alert-interval"><i class="ti ti-refresh" style="font-size:11px"></i> automático — a cada 1h15 enquanto o app estiver aberto</div>`
+        : `<div class="alert-time-row"><span class="alert-time-label">Horário:</span><input type="time" value="${time}" onchange="setAlertTime('${a.id}',this.value)" ${on?'':'disabled'}></div>`
+      }
+    </div>`;
+  }).join('');
+  
+  // Notif permission button
+  const btn=document.querySelector('.notif-btn');
+  if(btn){
+    const perm=Notification.permission;
+    if(perm==='granted'){btn.innerHTML='<i class="ti ti-bell-check"></i>Notificações ativas';btn.style.opacity='0.6';btn.onclick=null;}
+    else if(perm==='denied'){btn.innerHTML='<i class="ti ti-bell-off"></i>Notificações bloqueadas — verifique as configurações do navegador';btn.style.opacity='0.6';}
+  }
+}
+
+function toggleAlert(id,btn){
+  if(!S.alertStates)S.alertStates={};
+  S.alertStates[id]=!btn.classList.contains('on');
+  btn.classList.toggle('on');
+  save();scheduleAlerts();buildAlerts();
+}
+
+function setAlertTime(id,val){
+  if(!S.alertTimes)S.alertTimes={};
+  S.alertTimes[id]=val;
+  save();
 }
 
 // ═══ PLAYER ═══
@@ -737,13 +854,14 @@ function togglePlayer(){
 
 // ═══ TABS ═══
 function showTab(tab){
-  ['hoje','diario','intencoes','progresso','chat'].forEach(t=>{
+  ['hoje','diario','intencoes','progresso','alertas','chat'].forEach(t=>{
     document.getElementById('sec-'+t).classList.toggle('section-hidden',t!==tab);
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
   });
   if(tab==='diario'){buildDiaryTabs();buildDiaryHistory();}
   if(tab==='intencoes'){buildIntentCats();buildVocab();}
   if(tab==='progresso'){buildProgress();}
+  if(tab==='alertas'){buildAlerts();}
 }
 
 // ═══ DAY NAV ═══
