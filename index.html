@@ -43,6 +43,13 @@ body{font-family:var(--font-body);color:var(--ink);display:flex;flex-direction:c
 .pwd-btn:hover{background:var(--green-dark);transform:translateY(-1px)}
 .pwd-error{font-size:12px;color:#A04040;margin-top:4px;height:16px;font-style:italic}
 
+/* SYNC INDICATOR */
+.sync-dot{position:fixed;top:12px;right:12px;width:7px;height:7px;border-radius:50%;background:var(--hint);z-index:100;transition:background 0.3s}
+.sync-dot.syncing{background:var(--gold);animation:pulse 1s infinite}
+.sync-dot.synced{background:var(--green)}
+.sync-dot.error{background:#A04040}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
 /* HERO */
 .hero{padding:28px 24px 0;position:relative}
 .hero-greeting{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--hint);font-weight:400;margin-bottom:4px}
@@ -311,6 +318,8 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
 </style>
 </head>
 <body>
+<div class="sync-dot" id="sync-dot" title="sincronização"></div>
+
 <!-- PASSWORD SCREEN -->
 <div id="pwd-screen">
   <div class="pwd-box">
@@ -528,6 +537,64 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
 </div>
 
 <script>
+// ═══ SUPABASE CONFIG ═══
+const SUPABASE_URL = 'https://seucaetbtpnahglhiqay.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Xu1BRGkeQqmMruX1Cc5iIg_nNALxL7I';
+const USER_ID = 'marcela';
+
+function syncDot(state){
+  const d=document.getElementById('sync-dot');
+  d.className='sync-dot '+(state||'');
+}
+
+async function saveToCloud(data){
+  syncDot('syncing');
+  try{
+    // Try upsert — update if exists, insert if not
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}`,{
+      method:'GET',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}
+    });
+    const existing = await res.json();
+    
+    if(existing && existing.length > 0){
+      // Update
+      await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}`,{
+        method:'PATCH',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify({data: data, updated_at: new Date().toISOString()})
+      });
+    } else {
+      // Insert
+      await fetch(`${SUPABASE_URL}/rest/v1/app_data`,{
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body: JSON.stringify({user_id: USER_ID, data: data, updated_at: new Date().toISOString()})
+      });
+    }
+    syncDot('synced');
+    setTimeout(()=>syncDot(''),3000);
+  }catch(e){
+    syncDot('error');
+    console.warn('Sync failed, using local only',e);
+  }
+}
+
+async function loadFromCloud(){
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_data?user_id=eq.${USER_ID}&select=data`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    const rows = await res.json();
+    if(rows && rows.length > 0 && rows[0].data){
+      return rows[0].data;
+    }
+  }catch(e){
+    console.warn('Could not load from cloud',e);
+  }
+  return null;
+}
+
 // ═══ DATA ═══
 const CHECKS={
   manha:[
@@ -601,13 +668,20 @@ const todayKey=()=>new Date().toISOString().split('T')[0];
 const viewKey=()=>S.viewingDate||todayKey();
 const isToday=()=>viewKey()===todayKey();
 const dayData=k=>{if(!S.days[k])S.days[k]={checks:{},pos:0,neg:0};return S.days[k];};
-const save=()=>{try{localStorage.setItem('tss-v3',JSON.stringify(S));}catch(e){}};
+
+let saveTimer=null;
+const save=()=>{
+  try{localStorage.setItem('tss-v3',JSON.stringify(S));}catch(e){}
+  // Debounce cloud save — wait 1.5s after last change
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>saveToCloud(S),1500);
+};
 const load=()=>{try{const d=localStorage.getItem('tss-v3');if(d)Object.assign(S,JSON.parse(d));}catch(e){}};
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 // ═══ INIT ═══
-function init(){
-  load();
+async function init(){
+  load(); // load local first for instant render
   const h=new Date().getHours();
   document.getElementById('greeting').textContent=h<12?'bom dia':h<18?'boa tarde':'boa noite';
   const d=new Date();
@@ -617,6 +691,21 @@ function init(){
   const q=QUOTES[d.getDay()%QUOTES.length];
   document.getElementById('daily-quote').innerHTML=`<p>"${q.q}"</p><span>— ${q.a}</span>`;
   buildPlayer();buildChecks();updateDayNav();
+  
+  // Then try to load from cloud and merge
+  syncDot('syncing');
+  const cloudData = await loadFromCloud();
+  if(cloudData){
+    // Cloud data wins — it's the most up to date across devices
+    Object.assign(S, cloudData);
+    try{localStorage.setItem('tss-v3',JSON.stringify(S));}catch(e){}
+    buildChecks();updateDayNav();
+    syncDot('synced');
+    setTimeout(()=>syncDot(''),2000);
+  } else {
+    syncDot('');
+  }
+  
   setInterval(()=>{if(S.alertStates&&S.alertStates['a3']!==false)showPauseModal();},75*60*1000);
 }
 
@@ -814,7 +903,6 @@ function buildProgress(){
   if(S.heatData[tk]){streak=1;let cur=new Date(tk);while(true){cur.setDate(cur.getDate()-1);const k=cur.toISOString().split('T')[0];if((S.heatData[k]||0)>0)streak++;else break;}}
   document.getElementById('streak-num').textContent=streak||'—';
   document.getElementById('prog-cards').innerHTML=[{num:`${done}/${all.length}`,lbl:'práticas hoje'},{num:realized,lbl:'intenções realizadas'},{num:diaryTotal,lbl:'entradas no diário'}].map(c=>`<div class="prog-card"><div class="prog-num">${c.num}</div><div class="prog-lbl">${c.lbl}</div></div>`).join('');
-  // heatmap
   const hm=document.getElementById('heatmap');hm.innerHTML='';
   const now=new Date();const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
   for(let i=1;i<=Math.min(28,dim);i++){
@@ -826,10 +914,8 @@ function buildProgress(){
     cl.onclick=()=>{S.viewingDate=k===todayKey()?null:k;save();showTab('hoje');buildChecks();updateDayNav();};
     hm.appendChild(cl);
   }
-  // reading
   const hist=document.getElementById('reading-history');const re=(S.readings||[]).slice(0,4);
   hist.innerHTML=re.map(e=>`<div class="reading-entry"><div class="reading-book">${esc(e.book)}</div><div class="reading-text">${esc(e.insight)}</div><div class="reading-date">${e.date}</div></div>`).join('')||`<div style="font-size:12px;color:var(--hint);font-style:italic;padding:6px 0;font-family:var(--font-title)">nenhuma leitura ainda</div>`;
-  // realized
   const rl=document.getElementById('realized-list');const ra=Object.values(S.intents).flat().filter(x=>x.done);
   rl.innerHTML=ra.length?ra.map(it=>`<div class="realized-item"><i class="ti ti-star-filled"></i><div><div class="realized-text">${esc(it.text)}</div><div class="realized-date">${it.realizedAt||''}</div></div></div>`).join(''):`<div class="empty-state"><i class="ti ti-star"></i><p>suas intenções realizadas aparecem aqui</p></div>`;
 }
@@ -908,8 +994,6 @@ function stopTimer(){if(_ti)clearInterval(_ti);_ti=null;document.getElementById(
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 // ═══ PASSWORD ═══
-const PWD_HASH='5e36f9e7c8b2a1d4f6e8c3b5a7d9f2e4b6c8a3d5f7e9b1c4a6d8f2e5b7c9a3';
-function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h).toString(16);}
 function checkPwd(){
   const val=document.getElementById('pwd-input').value;
   const stored=localStorage.getItem('tss-auth');
