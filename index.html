@@ -169,6 +169,39 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
 .empty-state i{font-size:28px;opacity:0.25;margin-bottom:8px;display:block}
 .empty-state p{font-family:var(--font-title);font-size:14px;font-style:italic;line-height:1.5}
 
+/* INTENTION PARAGRAPH */
+.intent-para-card{background:var(--card);border:0.5px solid var(--green-mid);border-radius:var(--radius);padding:18px;margin-bottom:22px;box-shadow:var(--shadow);cursor:pointer;transition:all 0.2s}
+.intent-para-card:hover{box-shadow:0 4px 20px rgba(44,42,37,0.1)}
+.intent-para-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.intent-para-title{font-family:var(--font-title);font-size:17px;color:var(--green);font-weight:400;display:flex;align-items:center;gap:7px}
+.intent-para-actions{display:flex;align-items:center;gap:8px}
+.intent-para-toggle{font-size:13px;color:var(--hint);transition:transform 0.3s}
+.intent-para-toggle.open{transform:rotate(180deg)}
+.intent-para-preview{font-family:var(--font-title);font-size:15px;font-style:italic;color:var(--ink);line-height:1.8;font-weight:300;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.intent-para-full{font-family:var(--font-title);font-size:15px;font-style:italic;color:var(--ink);line-height:1.8;font-weight:300;display:none;white-space:pre-wrap}
+.intent-para-full.open{display:block}
+.intent-para-preview.open{display:none}
+.intent-para-edit-btn{background:none;border:0.5px solid var(--green-mid);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--green);cursor:pointer;font-family:var(--font-body)}
+.intent-para-edit-btn:hover{background:var(--green-light)}
+.intent-para-textarea{width:100%;border:0.5px solid var(--green-mid);border-radius:10px;padding:12px;font-family:var(--font-title);font-size:14px;font-style:italic;color:var(--ink);background:white;outline:none;resize:none;min-height:200px;line-height:1.8;margin-bottom:10px;margin-top:10px}
+.intent-para-textarea:focus{border-color:var(--green)}
+.intent-para-save{padding:8px 16px;background:var(--green);color:white;border:none;border-radius:9px;font-size:12px;font-family:var(--font-body);cursor:pointer;font-weight:500}
+.intent-para-cancel{padding:8px 16px;background:none;border:0.5px solid var(--green-mid);color:var(--green);border-radius:9px;font-size:12px;font-family:var(--font-body);cursor:pointer}
+.intent-para-empty{font-size:13px;color:var(--hint);font-style:italic;font-family:var(--font-title);line-height:1.6}
+
+/* COMMITMENT */
+.commit-card{background:var(--gold-light);border:1px solid var(--gold-mid);border-radius:var(--radius);padding:18px;margin-bottom:22px;box-shadow:var(--shadow)}
+.commit-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.commit-title{font-family:var(--font-title);font-size:17px;color:var(--gold);font-weight:400;display:flex;align-items:center;gap:7px}
+.commit-edit-btn{background:none;border:0.5px solid var(--gold-mid);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--gold);cursor:pointer;font-family:var(--font-body)}
+.commit-edit-btn:hover{background:var(--gold-mid);color:white}
+.commit-text{font-family:var(--font-title);font-size:15px;font-style:italic;color:var(--ink);line-height:1.8;font-weight:300;white-space:pre-wrap}
+.commit-textarea{width:100%;border:0.5px solid var(--gold-mid);border-radius:10px;padding:12px;font-family:var(--font-title);font-size:14px;font-style:italic;color:var(--ink);background:white;outline:none;resize:none;min-height:160px;line-height:1.8;margin-bottom:10px}
+.commit-textarea:focus{border-color:var(--gold)}
+.commit-actions{display:flex;gap:8px}
+.commit-save{padding:8px 16px;background:var(--gold);color:white;border:none;border-radius:9px;font-size:12px;font-family:var(--font-body);cursor:pointer;font-weight:500}
+.commit-cancel{padding:8px 16px;background:none;border:0.5px solid var(--gold-mid);color:var(--gold);border-radius:9px;font-size:12px;font-family:var(--font-body);cursor:pointer}
+
 /* INTENTIONS */
 .intent-privacy{background:var(--gold-light);border:0.5px solid var(--gold-mid);border-radius:12px;padding:11px 14px;margin-bottom:18px;display:flex;gap:9px;align-items:flex-start}
 .intent-privacy p{font-size:12px;color:var(--muted);font-style:italic;line-height:1.6}
@@ -436,6 +469,42 @@ textarea{width:100%;border:none;background:transparent;font-family:var(--font-bo
     <div id="sec-intencoes" class="section-hidden">
       <p class="sec-title">Intenções</p>
       <div class="intent-privacy"><i class="ti ti-lock" style="color:var(--gold);font-size:14px;margin-top:1px;flex-shrink:0"></i><p>Este espaço é só seu. Nunca compartilhe suas Intenções.</p></div>
+      <!-- QUADRO DE INTENÇÃO -->
+      <div class="intent-para-card" id="intent-para-card" onclick="toggleIntentPara(event)">
+        <div class="intent-para-header">
+          <div class="intent-para-title"><i class="ti ti-eye-heart" style="font-size:15px"></i>Minhas Intenções</div>
+          <div class="intent-para-actions">
+            <button class="intent-para-edit-btn" onclick="editIntentPara(event)"><i class="ti ti-pencil" style="font-size:11px"></i> editar</button>
+            <i class="ti ti-chevron-down intent-para-toggle" id="intent-para-toggle"></i>
+          </div>
+        </div>
+        <div class="intent-para-preview" id="intent-para-preview"><span class="intent-para-empty">Clique em editar para escrever suas intenções no formato dos 3 P's — passado, positivo e pessoal.</span></div>
+        <div class="intent-para-full" id="intent-para-full"></div>
+        <div id="intent-para-edit" style="display:none" onclick="event.stopPropagation()">
+          <textarea class="intent-para-textarea" id="intent-para-textarea" placeholder="Escreva suas intenções como se já fossem realidade — passado, positivo e pessoal. Deixe fluir, sem limite de tamanho..."></textarea>
+          <div class="commit-actions">
+            <button class="intent-para-save" onclick="saveIntentPara(event)">salvar</button>
+            <button class="intent-para-cancel" onclick="cancelIntentPara(event)">cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPROMISSO -->
+      <div class="commit-card" id="commit-card">
+        <div class="commit-header">
+          <div class="commit-title"><i class="ti ti-writing" style="font-size:15px"></i>Meu Compromisso</div>
+          <button class="commit-edit-btn" onclick="editCommit()"><i class="ti ti-pencil" style="font-size:11px"></i> editar</button>
+        </div>
+        <div class="commit-text" id="commit-text"></div>
+        <div id="commit-edit" style="display:none">
+          <textarea class="commit-textarea" id="commit-textarea"></textarea>
+          <div class="commit-actions">
+            <button class="commit-save" onclick="saveCommit()">salvar</button>
+            <button class="commit-cancel" onclick="cancelCommit()">cancelar</button>
+          </div>
+        </div>
+      </div>
+
       <div id="intent-cats-view">
         <div class="block-label">categorias</div>
         <div class="icat-grid" id="intent-cats"></div>
@@ -859,7 +928,7 @@ function showTab(tab){
     document.getElementById('tab-'+t).classList.toggle('active',t===tab);
   });
   if(tab==='diario'){buildDiaryTabs();buildDiaryHistory();}
-  if(tab==='intencoes'){buildIntentCats();buildVocab();}
+  if(tab==='intencoes'){buildIntentPara();buildCommit();buildIntentCats();buildVocab();}
   if(tab==='progresso'){buildProgress();}
   if(tab==='alertas'){buildAlerts();}
 }
@@ -967,6 +1036,97 @@ function delDiary(id){
   if(!confirm('Apagar?'))return;
   S.diaryEntries[S.diaryTab]=(S.diaryEntries[S.diaryTab]||[]).filter(e=>e.id!==id);
   save();buildDiaryHistory();
+}
+
+// ═══ INTENTION PARAGRAPH ═══
+let intentParaOpen = false;
+
+function buildIntentPara(){
+  const text = S.intentionParagraph || '';
+  const preview = document.getElementById('intent-para-preview');
+  const full = document.getElementById('intent-para-full');
+  if(text){
+    preview.innerHTML = `<span style="font-family:var(--font-title);font-size:15px;font-style:italic;color:var(--ink);line-height:1.8;font-weight:300">${text.replace(/\n/g,'<br>')}</span>`;
+    full.innerHTML = `<span>${text.replace(/\n/g,'<br>')}</span>`;
+  } else {
+    preview.innerHTML = `<span class="intent-para-empty">Clique em editar para escrever suas intenções no formato dos 3 P's — passado, positivo e pessoal.</span>`;
+    full.innerHTML = '';
+  }
+  // Reset state
+  intentParaOpen = false;
+  preview.classList.remove('open');
+  full.classList.remove('open');
+  document.getElementById('intent-para-toggle').classList.remove('open');
+}
+
+function toggleIntentPara(e){
+  // Don't toggle if clicking edit button or inside edit area
+  if(e.target.closest('.intent-para-edit-btn') || e.target.closest('#intent-para-edit')) return;
+  if(!S.intentionParagraph) return;
+  intentParaOpen = !intentParaOpen;
+  document.getElementById('intent-para-preview').classList.toggle('open', intentParaOpen);
+  document.getElementById('intent-para-full').classList.toggle('open', intentParaOpen);
+  document.getElementById('intent-para-toggle').classList.toggle('open', intentParaOpen);
+}
+
+function editIntentPara(e){
+  e.stopPropagation();
+  document.getElementById('intent-para-edit').style.display='block';
+  document.getElementById('intent-para-preview').style.display='none';
+  document.getElementById('intent-para-full').style.display='none';
+  document.getElementById('intent-para-toggle').style.display='none';
+  document.querySelector('.intent-para-edit-btn').style.display='none';
+  document.getElementById('intent-para-textarea').value = S.intentionParagraph || '';
+  document.getElementById('intent-para-textarea').focus();
+}
+
+function saveIntentPara(e){
+  e.stopPropagation();
+  const val = document.getElementById('intent-para-textarea').value.trim();
+  S.intentionParagraph = val;
+  save();
+  cancelIntentPara(e);
+  buildIntentPara();
+}
+
+function cancelIntentPara(e){
+  e.stopPropagation();
+  document.getElementById('intent-para-edit').style.display='none';
+  document.getElementById('intent-para-preview').style.display='';
+  document.getElementById('intent-para-full').style.display='';
+  document.getElementById('intent-para-toggle').style.display='';
+  document.querySelector('.intent-para-edit-btn').style.display='';
+}
+
+// ═══ COMMITMENT ═══
+const DEFAULT_COMMIT = (name) => `Eu, ${name}, a partir de hoje assumo total controle da minha mentalidade. Aceito responsabilidade pelas minhas experiências. Tenho a intenção de que a abundância flua na minha vida. Me comprometo a mudar todos os padrões de comportamento destrutivo, e a introduzir consistentemente tudo o que for necessário para ter sucesso.`;
+
+function buildCommit(){
+  const name = CURRENT_USER.name;
+  if(!S.commitment) S.commitment = DEFAULT_COMMIT(name);
+  document.getElementById('commit-text').textContent = S.commitment;
+}
+
+function editCommit(){
+  document.getElementById('commit-text').style.display='none';
+  document.getElementById('commit-edit').style.display='block';
+  document.querySelector('.commit-edit-btn').style.display='none';
+  document.getElementById('commit-textarea').value = S.commitment || DEFAULT_COMMIT(CURRENT_USER.name);
+}
+
+function saveCommit(){
+  const val = document.getElementById('commit-textarea').value.trim();
+  if(!val) return;
+  S.commitment = val;
+  save();
+  document.getElementById('commit-text').textContent = val;
+  cancelCommit();
+}
+
+function cancelCommit(){
+  document.getElementById('commit-text').style.display='block';
+  document.getElementById('commit-edit').style.display='none';
+  document.querySelector('.commit-edit-btn').style.display='block';
 }
 
 // ═══ INTENTIONS ═══
